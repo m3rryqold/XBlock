@@ -3,16 +3,24 @@ This module defines all of the Mixins that provide components of XBlock-family
 functionality, such as ScopeStorage, RuntimeServices, and Handlers.
 """
 
+from __future__ import absolute_import
+from __future__ import division
+from __future__ import print_function
+from __future__ import unicode_literals
+
+
+from collections import OrderedDict
+import copy
 import functools
 import inspect
 import logging
-from lxml import etree
-import copy
-from collections import OrderedDict
-
-import json
 import warnings
+import json
 
+from future.utils import with_metaclass
+from lxml import etree
+from past.builtins import basestring
+import six
 from webob import Response
 
 from xblock.exceptions import JsonHandlerError, KeyValueMultiSaveError, XBlockSaveError, FieldDataDeprecationWarning
@@ -153,15 +161,14 @@ class RuntimeServicesMixin(object):
         Returns:
             One of "need", "want", or None.
         """
-        return cls._combined_services.get(service_name)
+        return cls._combined_services.get(service_name)  # pylint: disable=no-member
 
 
 @RuntimeServicesMixin.needs('field-data')
-class ScopedStorageMixin(RuntimeServicesMixin):
+class ScopedStorageMixin(with_metaclass(NamedAttributesMetaclass, RuntimeServicesMixin)):
     """
     This mixin provides scope for Fields and the associated Scoped storage.
     """
-    __metaclass__ = NamedAttributesMetaclass
 
     @class_lazy
     def fields(cls):  # pylint: disable=no-self-argument
@@ -308,7 +315,7 @@ class ScopedStorageMixin(RuntimeServicesMixin):
         # Since this is not understood by static analysis, silence this error.
         # pylint: disable=E1101
         attrs = []
-        for field in self.fields.values():
+        for field in six.itervalues(self.fields):
             try:
                 value = getattr(self, field.name)
             except Exception:  # pylint: disable=W0703
@@ -345,11 +352,10 @@ class ChildrenModelMetaclass(ScopedStorageMixin.__class__):
         return super(ChildrenModelMetaclass, mcs).__new__(mcs, name, bases, attrs)
 
 
-class HierarchyMixin(ScopedStorageMixin):
+class HierarchyMixin(with_metaclass(ChildrenModelMetaclass, ScopedStorageMixin)):
     """
     This adds Fields for parents and children.
     """
-    __metaclass__ = ChildrenModelMetaclass
 
     parent = Reference(help='The id of the parent of this XBlock', default=None, scope=Scope.parent)
 
@@ -460,7 +466,7 @@ class XmlSerializationMixin(ScopedStorageMixin):
                 block.runtime.add_node_as_child(block, child, id_generator)
 
         # Attributes become fields.
-        for name, value in node.items():
+        for name, value in node.items():  # lxml has no iteritems
             cls._set_field_if_present(block, name, value, {})
 
         # Text content becomes "content", if such a field exists.
@@ -483,7 +489,7 @@ class XmlSerializationMixin(ScopedStorageMixin):
         node.set('xblock-family', self.entry_point)
 
         # Set node attributes based on our fields.
-        for field_name, field in self.fields.iteritems():
+        for field_name, field in self.fields.items():
             if field_name in ('children', 'parent', 'content'):
                 continue
             if field.is_set_on(self) or field.force_export:
