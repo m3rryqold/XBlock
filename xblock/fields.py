@@ -767,7 +767,7 @@ class Boolean(JSONField):
 
     def from_json(self, value):
         if isinstance(value, six.binary_type):
-            value = value.decode('latin-1')  # guaranteed successful decode
+            value = value.decode('ascii', errors='replace')
         if isinstance(value, six.text_type):
             return value.lower() == 'true'
         else:
@@ -867,10 +867,10 @@ class String(JSONField):
         https://www.w3.org/TR/xml/#charsets
         Leave all other characters.
         """
+        if isinstance(value, six.binary_type):
+            value = value.decode('utf-8')
         if isinstance(value, six.text_type):
             new_value = u''.join(ch for ch in value if unicodedata.category(ch)[0] != u'C' or ch in u'\n\r\t')
-        elif isinstance(value, six.binary_type):
-            new_value = ''.join(ch for ch in value if ord(ch) >= 32 or ch in b'\n\r\t')
         else:
             return value
         # The new string will be equivalent to the original string if no control characters are present.

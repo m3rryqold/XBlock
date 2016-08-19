@@ -9,6 +9,8 @@ from __future__ import unicode_literals
 
 import textwrap
 
+import six
+
 
 def run_script(pycode):
     """Run the Python in `pycode`, and return a dict of the resulting globals."""
@@ -20,6 +22,6 @@ def run_script(pycode):
 
     # execute it.
     globs = {}
-    exec(pycode, globs, globs)  # pylint: disable=W0122
+    six.exec_(pycode, globs, globs)  # pylint: disable=W0122
 
     return globs
