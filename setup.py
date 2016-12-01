@@ -13,13 +13,14 @@ setup(
         'xblock.test.django',
     ],
     install_requires=[
+        'fs',
         'lxml',
         'markupsafe',
         'python-dateutil',
         'pytz',
         'pyyaml',
+        'six',
         'webob',
-        'fs',
     ],
     extras_require={
         'django': ['django-pyfs']

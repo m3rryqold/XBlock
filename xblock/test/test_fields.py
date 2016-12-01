@@ -2,34 +2,31 @@
 Tests for classes extending Field.
 """
 
-# Allow accessing protected members for testing purposes
-# pylint: disable=W0212
+# pylint: disable=abstract-class-instantiated, protected-access
 
-from mock import Mock
-import unittest
-
+from contextlib import contextmanager
 import datetime as dt
-import pytz
-import warnings
+import itertools
 import math
 import textwrap
-import itertools
-from contextlib import contextmanager
+import unittest
+import warnings
 
 import ddt
+from lxml import etree
+from mock import Mock
+import pytz
 
 from xblock.core import XBlock, Scope
 from xblock.field_data import DictFieldData
 from xblock.fields import (
-    Any, Boolean, Dict, Field, Float,
-    Integer, List, Set, String, DateTime, Reference, ReferenceList, Sentinel,
-    UNIQUE_ID
+    Any, Boolean, Dict, Field, Float, Integer, List, Set, String, XMLString, DateTime, Reference, ReferenceList,
+    ScopeIds, Sentinel, UNIQUE_ID, scope_key,
 )
 
 from xblock.test.tools import (
     assert_equals, assert_not_equals, assert_in, assert_not_in, assert_false, TestRuntime
 )
-from xblock.fields import scope_key, ScopeIds
 
 
 class FieldTest(unittest.TestCase):
@@ -242,6 +239,33 @@ class StringTest(FieldTest):
         with self.assertRaises(AssertionError):
             self.assertJSONOrSetGetEquals(u'\v', '')
         self.assertJSONOrSetGetEquals(u'\n\r\t', u'\n\v\r\b\t')
+
+
+class XMLStringTest(FieldTest):
+    """
+    Tests the XMLString Field.
+    """
+    FIELD_TO_TEST = XMLString
+
+    def test_json_equals(self):
+        self.assertJSONOrSetEquals(u'<abc>Hello</abc>', u'<abc>Hello</abc>')
+        self.assertJSONOrSetEquals(u'<abc attr="yes">Hello</abc>', u'<abc attr="yes">Hello</abc>')
+        self.assertJSONOrSetEquals(u'<xml/>', u'<xml/>')
+        self.assertJSONOrSetEquals('<bytes/>', '<bytes/>')
+        # UTF-8 strings get converted to unicode
+        self.assertJSONOrSetEquals('<unicode>\xc8\x88</unicode>', '<unicode>\xc8\x88</unicode>')
+
+    def test_bad_xml(self):
+        # pylint: disable=no-member
+        xml_string = self.FIELD_TO_TEST()
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, 'text')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml attr=3/>')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml attr="3/>')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml>')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml>open')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<xml/>trailing text')
+        self.assertRaises(etree.XMLSyntaxError, xml_string.from_json, '<invalid_utf8 char="\x9e"/>')
 
 
 @ddt.ddt
